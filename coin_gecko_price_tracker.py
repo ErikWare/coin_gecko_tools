@@ -6,14 +6,22 @@ Created on Mon Jan  1 23:07:31 2024
 @author: erikware
 """
 
+import argparse
 import requests
 import pandas as pd
 import os
 import logging
+import datetime
+
+# Get current date and time
+current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+# Set up logging configuration with timestamp in the log file name
+log_file_name = f"logging/price_tracker_{current_time}.log"
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', \
-                    filename='price_tracker.log', filemode='w')
+                    filename=log_file_name, filemode='w+')
 
 # Member Functions
 def call_api(url, params=None, headers=None):
@@ -74,15 +82,35 @@ def write_grouped_rows_to_csv(data_frame, column_name, output_directory):
         
 # Main
 def main():
+    
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument('--currency', type=str, default='USD', help='Currency for the API request (UDS, ext..)')
+    parser.add_argument('--per_page', type=int, default=250, help='Number of results per page (1-250)')
+    parser.add_argument('--page', type=int, default=1, help='Page number, 1 for first 250 results, 2 for second 250, ext..')
+    parser.add_argument('--sparkline', type=bool, default=False, help='Whether to include sparkline data')
+    parser.add_argument('--locale', type=str, default='en', help='Language')
+    parser.add_argument('--use_test_data', type=bool, default=False, help='Whether to use test data')
+    args = parser.parse_args()
+    
+    # Log the input arguments and indicate that the program is being executed
+    logging.info("Program is being executed with the following input arguments:")
+    logging.info("vs_currency: %s", args.currency)
+    logging.info("per_page: %s", args.per_page)
+    logging.info("page: %s", args.page)
+    logging.info("sparkline: %s", args.sparkline)
+    logging.info("locale: %s", args.locale)
+    
     # Set API Request
     url = "https://api.coingecko.com/api/v3/coins/markets"
     
-    params = {"vs_currency": "USD", 
-              "per_page": "250", 
-              "page": "1", 
-              "sparkline": "false", 
-              "locale": "en" }
-    
+    params = {
+        "vs_currency": args.currency,
+        "per_page": args.per_page,
+        "page": args.page,
+        "sparkline": args.sparkline,
+        "locale": args.locale
+    }
+
     headers = {"x-cg-demo-api-key": "CG-XAmtVYTcdRYK14aDdS2egGY9"}
     
     # use test data
