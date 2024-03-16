@@ -17,7 +17,7 @@ import datetime
 current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
 # Set up logging configuration with timestamp in the log file name
-log_file_name = f"logging/price_tracker_{current_time}.log"
+log_file_name = f"../logging/price_tracker_{current_time}.log"
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', \
@@ -131,7 +131,7 @@ def main():
         group_column = "symbol"
     
         # Specify the output directory
-        output_directory = "coin_files"
+        output_directory = "../coin_files"
         
         # Create output files
         write_grouped_rows_to_csv(coin_data_df, group_column, output_directory)
