@@ -1,3 +1,7 @@
+# Ignore Log Files
+*.log
+**/*.log
+
 
 # Ignore CSV
 *.csv
