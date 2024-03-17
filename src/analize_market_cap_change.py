@@ -63,10 +63,10 @@ def main():
     
     try:
         # get distinct list of symbols
-        distinct_values = coin_data_df['column_name'].unique()
+        distinct_values = coin_data_df['id'].unique()
         
         #For Each symbol perform find the market cap change over time
-        selected_rows_df = df[df['category'] == 'A']
+        selected_rows_df = coin_data_df[coin_data_df['id'] == 'bitcoin']
         
     except Exception as e:
         logging.error("Error: %s", e)

@@ -94,7 +94,7 @@ def main():
             coin_data_final_df = pd.concat([coin_data_results_df,coin_data_final_df], ignore_index=False)
             
             # Dont hit the API too fast
-            time.sleep(1)
+            time.sleep(3)
 
         # Data clense and enhancement
         coin_data_final_df['as_of_date'] = current_time
