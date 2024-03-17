@@ -11,7 +11,7 @@ import os
 
 def create_folders():
     # Create necessary folders
-    folders = ['coin_files', 'logging', 'output']
+    folders = ['data', 'logging', 'output']
     for folder in folders:
         os.makedirs(folder, exist_ok=True)
 

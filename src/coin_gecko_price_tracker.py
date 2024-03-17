@@ -6,12 +6,12 @@ Created on Mon Jan  1 23:07:31 2024
 @author: erikware
 """
 
-import argparse
 import requests
 import pandas as pd
 import os
 import logging
 import datetime
+import time
 
 # Get current date and time
 current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -34,110 +34,83 @@ def call_api(url, params=None, headers=None):
         else:
             logging.error("Error: %s", response.status_code)
             return None
-    except Exception as e:
-        logging.error("Error: %s", e)
-        return None
-    
-def write_to_csv(data_frame, file_path):
-    try:
-        # Write DataFrame to CSV file
-        data_frame.to_csv(file_path, index=False)
-        logging.info("DataFrame has been written to %s", file_path)
-    except Exception as e:
-        logging.error("Error: %s", e)
-
-def read_from_csv(file_path):
-    try:
-        # Read CSV file into DataFrame
-        data_frame = pd.read_csv(file_path)
-        return data_frame
-    except Exception as e:
-        logging.error("Error: %s", e)
-        return None
-
-    
-# Output data to csv
-def write_grouped_rows_to_csv(data_frame, column_name, output_directory):
-    try:
-        # Create output directory if it doesn't exist
-        os.makedirs(output_directory, exist_ok=True)
         
-        # Group DataFrame by the specified column
-        grouped = data_frame.groupby(column_name)
-
-        # Iterate through each group
-        for group_name, group_data in grouped:
-            # Create file path for the group
-            file_path = os.path.join(output_directory, f"{group_name}.csv")
-
-            # Write group data to CSV file, append if file exists
-            mode = 'a' if os.path.exists(file_path) else 'w'
-            
-            group_data.to_csv(file_path, mode=mode, index=False, header=not os.path.exists(file_path))
-            logging.info("Data for %s written to %s", group_name, file_path)
-
     except Exception as e:
         logging.error("Error: %s", e)
+        return None
+  
+        
+# export to a parquet file, if the file exists add to it, otherwise create it
+def to_parquet(df, file_path):
+
+    # Check if file exists
+    file_exists = os.path.exists(file_path)
+
+    # Write DataFrame to Parquet file based on file existence
+    if file_exists:
+        existing_df = pd.read_parquet(file_path)
+        pd.concat([existing_df, df], ignore_index=True).to_parquet(file_path)
+    else:
+        df.to_parquet(file_path)
 
         
 # Main
 def main():
     
-    parser = argparse.ArgumentParser(description='Process some integers.')
-    parser.add_argument('--currency', type=str, default='USD', help='Currency for the API request (UDS, ext..)')
-    parser.add_argument('--per_page', type=int, default=250, help='Number of results per page (1-250)')
-    parser.add_argument('--page', type=int, default=1, help='Page number, 1 for first 250 results, 2 for second 250, ext..')
-    parser.add_argument('--sparkline', type=bool, default=False, help='Whether to include sparkline data')
-    parser.add_argument('--locale', type=str, default='en', help='Language')
-    parser.add_argument('--use_test_data', type=bool, default=False, help='Whether to use test data')
-    args = parser.parse_args()
     
-    # Log the input arguments and indicate that the program is being executed
-    logging.info("Program is being executed with the following input arguments:")
-    logging.info("vs_currency: %s", args.currency)
-    logging.info("per_page: %s", args.per_page)
-    logging.info("page: %s", args.page)
-    logging.info("sparkline: %s", args.sparkline)
-    logging.info("locale: %s", args.locale)
+    # Get static metadata
+    # execution time
+    #current_time
     
-    # Set API Request
-    url = "https://api.coingecko.com/api/v3/coins/markets"
+           
+    # Specify the output directory
+    output_data_path = "../data/coin_data.parquet"
     
-    params = {
-        "vs_currency": args.currency,
-        "per_page": args.per_page,
-        "page": args.page,
-        "sparkline": args.sparkline,
-        "locale": args.locale
-    }
-
-    headers = {"x-cg-demo-api-key": "CG-XAmtVYTcdRYK14aDdS2egGY9"}
-    
-    # use test data
-    use_test_data = False
-    
-    # Execute API call and parse data
+    # Get meta data 
     try:
-        # execute URL request and get coin data
-        if use_test_data == False:
-            coin_list_json = call_api(url, params, headers)
-            coin_data_df = pd.DataFrame(coin_list_json)
-            
-            write_to_csv(coin_data_df, "test_csv_out.csv")
-        else:
-            coin_data_df = read_from_csv("test_csv_out.csv")
-        
-        # Specify the column to group by
-        group_column = "symbol"
     
-        # Specify the output directory
-        output_directory = "../coin_files"
+        # Set API Request
+        url = "https://api.coingecko.com/api/v3/coins/markets"
+        headers = {"x-cg-demo-api-key": "CG-XAmtVYTcdRYK14aDdS2egGY9"}
         
-        # Create output files
-        write_grouped_rows_to_csv(coin_data_df, group_column, output_directory)
+        coin_data_final_df = pd.DataFrame()
+        
+        # Hit Coin Gecko 4 times to get the top 1000 coins
+        for i in range(4):
+        
+            page_num = i + 1
+            
+            # Set Params
+            params = { "vs_currency": "USD", "per_page": 250, "page": page_num, "sparkline": False, "locale": "en" }
+            
+            # Request Coin Data
+            logging.info("Request Coin data from CoinGecko API, page: %s", page_num)
+            coin_list_json = call_api(url, params, headers)
+            
+            # Convert the response to dataframe
+            coin_data_results_df = pd.DataFrame(coin_list_json)
+            
+            # Append the existing dataframe
+            coin_data_final_df = pd.concat([coin_data_results_df,coin_data_final_df], ignore_index=False)
+            
+            # Dont hit the API too fast
+            time.sleep(1)
+
+        # Data clense and enhancement
+        coin_data_final_df['as_of_date'] = current_time
+        coin_data_final_df = coin_data_final_df.drop('image', axis=1)
+        coin_data_final_df = coin_data_final_df.sort_values(by='market_cap_rank')
+             
+        # Add to coin data set
+        logging.info("Writing output parquet file: %s", output_data_path)
+        to_parquet(coin_data_final_df, output_data_path)
+
+        
     except Exception as e:
         logging.error("Error: %s", e)
     
+    # Done
+    logging.info("Success, Process Complete")
 
 
 if __name__ == "__main__":
